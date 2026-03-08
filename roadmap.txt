@@ -1,0 +1,23 @@
+# Roadmap for Template Webapp
+
+1. **Setup Project Structure**
+   - Initialize Go module.
+   - Create directories for frontend static assets (`static/`).
+
+2. **Backend Development (Go)**
+   - Create `main.go` to serve the web application.
+   - Implement static file serving for the frontend.
+   - Create a protected API route (`/api/hello`) that returns the "Hello World" message.
+   - Implement JWT validation middleware to secure the `/api/hello` route. The middleware will verify the RS256 signed JWT tokens issued by the `grxm-iam` service.
+
+3. **Frontend Development (HTML/CSS/JS)**
+   - Create `static/login.html`: A responsive UI with tabs/forms for Login and Registration.
+     - Implement JavaScript to make `POST` requests to the `grxm-iam` endpoints (`/api/v1/login` and `/api/v1/register`).
+     - Handle storing the resulting JWT token in `localStorage` upon success.
+   - Create `static/index.html`: The protected "Hello World" page.
+     - Implement JavaScript to retrieve the JWT token.
+     - Redirect to `login.html` if the token is missing.
+     - Fetch the protected `/api/hello` backend route using the JWT token as a Bearer authorization header to prove identity and display the result.
+
+4. **Final Review**
+   - Ensure code is well-documented and follows best practices.
