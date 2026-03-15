@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 // APIResponse represents the JSON structure for the Hello endpoint.
@@ -35,5 +36,9 @@ func HelloHandler(pubKeyPEM string) http.HandlerFunc {
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":   "alive",
+		"database": "ok",
+		"time":     time.Now().Format(time.RFC3339),
+	})
 }
