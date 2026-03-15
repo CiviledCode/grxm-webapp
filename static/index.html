@@ -123,28 +123,36 @@
     const API_BASE_URL = window.location.origin;
 
     function logout() {
-        localStorage.removeItem('auth_token');
+        // Clear the cookie by setting its expiration to the past
+        document.cookie = "grxm-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         window.location.href = '/login.html';
     }
 
-    async function fetchHello() {
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-            window.location.href = '/login.html';
-            return;
+    // Helper to decode JWT for UI display
+    function parseJwt (token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch(e) {
+            return null;
         }
+    }
 
+    async function fetchHello() {
         try {
             const response = await fetch(`${API_BASE_URL}/api/hello`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                // This ensures cookies are sent with the request
+                credentials: 'same-origin' 
             });
 
             if (response.status === 401 || response.status === 403) {
-                // Token invalid or expired
-                logout();
+                // Token invalid or missing
+                window.location.href = '/login.html';
                 return;
             }
 
@@ -161,19 +169,14 @@
             const detailsEl = document.getElementById('details');
             detailsEl.innerText = `Authenticated successfully. User ID (uid): ${data.uid}`;
 
-            // Decode JWT to display all user claims
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                
-                const claims = JSON.parse(jsonPayload);
-                document.getElementById('user-info-display').style.display = 'block';
-                document.getElementById('user-info-content').innerText = JSON.stringify(claims, null, 2);
-            } catch (e) {
-                console.error("Failed to parse JWT payload for UI display", e);
+            // Get the token from the cookie to display claims
+            const match = document.cookie.match(new RegExp('(^| )grxm-token=([^;]+)'));
+            if (match) {
+                const claims = parseJwt(match[2]);
+                if (claims) {
+                    document.getElementById('user-info-display').style.display = 'block';
+                    document.getElementById('user-info-content').innerText = JSON.stringify(claims, null, 2);
+                }
             }
 
             if (data.public_key) {

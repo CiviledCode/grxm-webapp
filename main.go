@@ -6,6 +6,7 @@ import (
 
 	"github.com/civiledcode/grxm-webapp/internal/api"
 	"github.com/civiledcode/grxm-webapp/internal/config"
+	"github.com/civiledcode/grxm-webapp/internal/db"
 	"github.com/civiledcode/grxm-webapp/internal/iam"
 )
 
@@ -21,10 +22,19 @@ func main() {
 		log.Println("The backend may fail to connect to the IAM Authority WebSocket if it requires authentication.")
 	}
 
+	// 2. Initialize MongoDB connection
+	if err := db.Init(appConfig); err != nil {
+		log.Fatalf("Critical Error: Failed to initialize MongoDB connection: %v", err)
+	}
+
 	iamCfg := iam.Config{
 		IAMHost:           appConfig.IAMHost,
 		AuthorityPath:     "/iam/api/v1/authority",
 		AuthorityPassword: appConfig.IAMAuthorityPassword,
+		RedisHost:         appConfig.RedisHost,
+		RedisPassword:     appConfig.RedisPassword,
+		RedisDB:           appConfig.RedisDB,
+		CookieName:        appConfig.CookieName,
 	}
 
 	// 2. Initialize the IAM Client
@@ -42,7 +52,7 @@ func main() {
 	mux.HandleFunc("/health", api.HealthHandler)
 
 	// Protected API route - Wraps HelloHandler in the JWT validation middleware
-	mux.HandleFunc("/api/hello", iamClient.RequireAuth(api.HelloHandler(iamClient.PublicKeyPEM)))
+	mux.HandleFunc("/api/hello", iamClient.AuthRequired(api.HelloHandler(iamClient.PublicKeyPEM)))
 
 	// Serve the frontend template files (HTML, CSS, JS)
 	fileServer := http.FileServer(http.Dir("./static"))

@@ -215,14 +215,21 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                // Important: Include credentials so the backend can set the cookie
+                credentials: 'same-origin'
             });
 
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Store the JWT token
-                localStorage.setItem('auth_token', data.token);
+                // If the backend returns the token in the response body but didn't set a cookie (e.g. legacy mode),
+                // we'll manually set a non-HttpOnly cookie as a fallback so the frontend works smoothly.
+                // Ideally, grxm-iam is setting this as an HttpOnly cookie automatically.
+                if (data.token && !document.cookie.includes('grxm-token=')) {
+                    document.cookie = `grxm-token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
+                }
+                
                 // Redirect to the protected application page
                 window.location.href = '/';
             } else {
@@ -237,9 +244,9 @@
         }
     }
 
-    // Check if already logged in
+    // Check if already logged in by looking for the cookie
     window.onload = () => {
-        if (localStorage.getItem('auth_token')) {
+        if (document.cookie.includes('grxm-token=')) {
             window.location.href = '/';
         }
     };

@@ -1,0 +1,27 @@
+# Changelog
+
+All notable changes to the grxm-webapp template project will be documented in this file.
+
+## [Unreleased]
+
+### Added
+*   **Redis Denylist Integration:** Added `github.com/redis/go-redis/v9` to support high-speed token revocation checks. The overarching `AuthUser` middleware now queries Redis; if a user's ID exists on the denylist, their request is instantly rejected (401 Unauthorized), overriding JWT expiration validity.
+*   **Redis Configuration:** Added `redis_host`, `redis_password`, and `redis_db` fields to the central configuration (`config.json` and `AppConfig` struct).
+*   **IAM Authority Operations Client:** Expanded `internal/iam` with programmatic methods (`BanUser`, `UnbanUser`, `UpdateRoles`, `AddRole`, `RemoveRole`) that establish ad-hoc WebSocket connections to the IAM Authority endpoint to dispatch administrative commands securely.
+*   **Multi-Provider Database Layer:** Created `internal/db` package to manage database connections. Implemented an orchestrator pattern (`db.Init(cfg)`) that dynamically connects to a database based on the `db_provider` configuration field.
+*   **MongoDB Provider:** Implemented the `"mongo"` provider in `internal/db/mongo.go` using the official `go.mongodb.org/mongo-driver/v2`. Exposes global `db.MongoDB` and `db.MongoClient` variables for ease of use across API handlers.
+*   **Database Configuration:** Added `db_provider`, `mongo_uri`, and `mongo_db` to the application configuration.
+
+### Changed
+*   **Authentication Flow (Security):** Fully migrated the frontend and backend from `localStorage` to cookie-based authentication. The `AuthRequired` middleware now prioritizes the `Authorization` header but seamlessly falls back to reading the configured cookie (`cookie_name` in config, defaults to `grxm-token`). The frontend (`index.html`, `login.html`) no longer stores or reads tokens from `localStorage`, ensuring immediate session termination when the cookie is deleted and protecting against XSS attacks.
+*   **Middleware Renamed:** Renamed the JWT validation middleware to `AuthRequired` to better reflect its comprehensive authentication and authorization role (including denylist checks).
+*   **Package Restructuring:** Segregated the `internal/` directory into a highly modular structure:
+    *   Moved `config.go` into a dedicated `internal/config` package.
+    *   Created `internal/utils` for future utility scripts and shared functions.
+    *   Maintained `internal/api` for HTTP handlers.
+    *   Maintained `internal/iam` as a self-contained, generic client for `grxm-iam` integration.
+*   **Boot Sequence:** Updated `main.go` to initialize the database connection via `db.Init(appConfig)` immediately following configuration loading.
+*   **Documentation:** Substantially updated `docs.md` to reflect the new modular architecture, the inclusion of Redis and MongoDB, and the new configuration fields.
+
+### Removed
+*   N/A

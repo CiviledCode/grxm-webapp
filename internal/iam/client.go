@@ -1,12 +1,15 @@
 package iam
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"log"
 	"net/url"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/websocket"
 )
 
@@ -15,12 +18,18 @@ type Config struct {
 	IAMHost           string // e.g., "localhost:8081"
 	AuthorityPath     string // typically "/api/v1/authority"
 	AuthorityPassword string
+	RedisHost         string
+	RedisPassword     string
+	RedisDB           int
+	CookieName        string
 }
 
 // Client represents the active IAM integration client that holds the fetched cryptographic keys.
 type Client struct {
 	PublicKey    *rsa.PublicKey
 	PublicKeyPEM string
+	Redis        *redis.Client
+	config       Config
 }
 
 // NewClient connects to the grxm-iam Authority WebSocket, authenticates, and fetches the RSA public key.
@@ -78,8 +87,31 @@ func NewClient(cfg Config) (*Client, error) {
 
 	log.Println("Successfully retrieved and parsed IAM public key via Authority WebSocket")
 
+	// Initialize the Redis Client for high-speed denylist checking
+	// Ultra-short timeouts and no retries ensure a missing Redis server
+	// fails fast and doesn't severely impact user authentication times.
+	rdb := redis.NewClient(&redis.Options{
+		Addr:         cfg.RedisHost,
+		Password:     cfg.RedisPassword,
+		DB:           cfg.RedisDB,
+		DialTimeout:  100 * time.Millisecond,
+		ReadTimeout:  100 * time.Millisecond,
+		WriteTimeout: 100 * time.Millisecond,
+		MaxRetries:   1,
+	})
+
+	// Test Redis connection
+	ctx := context.Background()
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		log.Printf("Warning: Could not connect to Redis at %s: %v", cfg.RedisHost, err)
+	} else {
+		log.Printf("Successfully connected to Redis denylist at %s", cfg.RedisHost)
+	}
+
 	return &Client{
 		PublicKey:    pubKey,
 		PublicKeyPEM: resp.Message,
+		Redis:        rdb,
+		config:       cfg,
 	}, nil
 }

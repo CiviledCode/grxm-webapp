@@ -11,6 +11,13 @@ type AppConfig struct {
 	Port                 string `json:"port"`
 	IAMHost              string `json:"iam_host"`
 	IAMAuthorityPassword string `json:"iam_authority_password"`
+	RedisHost            string `json:"redis_host"`
+	RedisPassword        string `json:"redis_password"`
+	RedisDB              int    `json:"redis_db"`
+	CookieName           string `json:"cookie_name"`
+	DBProvider           string `json:"db_provider"`
+	MongoURI             string `json:"mongo_uri"`
+	MongoDB              string `json:"mongo_db"`
 }
 
 // LoadConfig attempts to locate and parse the config.json file based on priority:
@@ -57,6 +64,21 @@ func LoadConfig() (*AppConfig, error) {
 	}
 	if cfg.IAMHost == "" {
 		cfg.IAMHost = "localhost:8081"
+	}
+	if cfg.RedisHost == "" {
+		cfg.RedisHost = "localhost:6379"
+	}
+	if cfg.CookieName == "" {
+		cfg.CookieName = "grxm-token"
+	}
+	if cfg.DBProvider == "" {
+		cfg.DBProvider = "mongo"
+	}
+	if cfg.MongoURI == "" {
+		cfg.MongoURI = "mongodb://localhost:27017"
+	}
+	if cfg.MongoDB == "" {
+		cfg.MongoDB = "grxm_webapp"
 	}
 
 	return &cfg, nil
