@@ -9,7 +9,7 @@
     "mongo_db": "grxm_webapp",
     "admin_role": "admin",
     "default_role": "user",
-    "authed_path": "/",
+    "authed_path": "/dashboard",
     "unauthed_path": "/login",
     "profile": {
         "require_unique_username": true,

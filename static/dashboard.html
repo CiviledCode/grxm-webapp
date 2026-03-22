@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World - Template Webapp</title>
+    <link rel="stylesheet" href="/assets/main.css">
+</head>
+<body>
+
+<div class="navbar">
+    <h1>Template Webapp</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<div class="content">
+    <h2 id="welcome-message" class="status-loading">Loading securely...</h2>
+    <p id="details"></p>
+
+    <div id="user-info-display" style="display: none;">
+        <h3>User Information (JWT Claims):</h3>
+        <pre id="user-info-content" class="pubkey-container"></pre>
+    </div>
+
+    <div id="pubkey-display" style="display: none;">
+        <h3>IAM Public Key Used for Verification:</h3>
+        <pre id="pubkey-content" class="pubkey-container"></pre>
+    </div>
+</div>
+
+<script>
+    // Configuration: Backend API
+    const API_BASE_URL = window.location.origin;
+
+    function logout() {
+        // Clear the cookie by setting its expiration to the past
+        document.cookie = "grxm-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        window.location.href = '/login';
+    }
+
+    // Helper to decode JWT for UI display
+    function parseJwt (token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch(e) {
+            return null;
+        }
+    }
+
+    async function fetchHello() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/hello`, {
+                method: 'GET',
+                // This ensures cookies are sent with the request
+                credentials: 'same-origin' 
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                // Token invalid or missing
+                window.location.href = '/login';
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch data from backend');
+            }
+
+            const data = await response.json();
+            
+            const welcomeEl = document.getElementById('welcome-message');
+            welcomeEl.innerText = data.message;
+            welcomeEl.className = 'status-success';
+
+            const detailsEl = document.getElementById('details');
+            detailsEl.innerText = `Authenticated successfully. User ID (uid): ${data.uid}`;
+
+            // Get the token from the cookie to display claims
+            const match = document.cookie.match(new RegExp('(^| )grxm-token=([^;]+)'));
+            if (match) {
+                const claims = parseJwt(match[2]);
+                if (claims) {
+                    document.getElementById('user-info-display').style.display = 'block';
+                    document.getElementById('user-info-content').innerText = JSON.stringify(claims, null, 2);
+                }
+            }
+
+            if (data.public_key) {
+                document.getElementById('pubkey-display').style.display = 'block';
+                document.getElementById('pubkey-content').innerText = data.public_key;
+            }
+
+        } catch (error) {
+            const welcomeEl = document.getElementById('welcome-message');
+            welcomeEl.innerText = 'Error loading content';
+            welcomeEl.className = 'status-error';
+            
+            const detailsEl = document.getElementById('details');
+            detailsEl.innerText = error.message;
+        }
+    }
+
+    window.onload = fetchHello;
+</script>
+
+</body>
+</html>

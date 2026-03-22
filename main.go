@@ -84,11 +84,12 @@ func main() {
 	// Serve the assets directory
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
 
+	mux.Handle("/dashboard", iamClient.AuthRequired(api.ProfileRequired(api.ServeStaticAuthed("./static/dashboard.html"))))
+
 	// Catch-all route (and home page)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			// Serve the home page which requires Auth and a Profile
-			iamClient.AuthRequired(api.ProfileRequired(api.ServeStaticAuthed("./static/index.html"))).ServeHTTP(w, r)
+			api.ServeStatic("./static/index.html").ServeHTTP(w, r)
 			return
 		}
 
