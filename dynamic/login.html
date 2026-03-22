@@ -101,7 +101,7 @@
                 }
                 
                 // Redirect to the protected application page
-                window.location.href = '/';
+                window.location.href = '{{.AuthedPath}}';
             } else {
                 throw new Error(data.message || 'Authentication failed');
             }
@@ -113,13 +113,6 @@
             submitBtn.innerText = currentMode === 'login' ? 'Login' : 'Sign Up';
         }
     }
-
-    // Check if already logged in by looking for the cookie
-    window.onload = () => {
-        if (document.cookie.includes('grxm-token=')) {
-            window.location.href = '/';
-        }
-    };
 </script>
 
 </body>

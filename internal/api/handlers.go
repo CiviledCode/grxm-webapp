@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/civiledcode/grxm-webapp/internal/config"
 	"github.com/civiledcode/grxm-webapp/internal/iam"
 	"github.com/civiledcode/grxm-webapp/internal/profile"
 )
@@ -15,6 +16,7 @@ import (
 var (
 	adminTemplate      *template.Template
 	adminUsersTemplate *template.Template
+	loginTemplate      *template.Template
 )
 
 func loadTemplate(name, path string) *template.Template {
@@ -40,6 +42,20 @@ func loadTemplate(name, path string) *template.Template {
 func init() {
 	adminTemplate = loadTemplate("admin_dashboard", "./dynamic/admin.html")
 	adminUsersTemplate = loadTemplate("admin_users", "./dynamic/admin_users.html")
+	loginTemplate = loadTemplate("login", "./dynamic/login.html")
+}
+
+// LoginHandler serves the dynamic login page, injecting configuration.
+func LoginHandler(cfg *config.AppConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := struct {
+			AuthedPath string
+		}{
+			AuthedPath: cfg.AuthedPath,
+		}
+		w.Header().Set("Content-Type", "text/html")
+		loginTemplate.Execute(w, data)
+	}
 }
 
 // APIResponse represents the JSON structure for the Hello endpoint.

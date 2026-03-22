@@ -105,7 +105,86 @@ func (c *Client) validateRequest(w http.ResponseWriter, r *http.Request) jwt.Map
 	return claims
 }
 
-// AuthRequired is an HTTP middleware that validates the JWT Bearer token
+// RedirectIfAuthed checks if a valid token is present and redirects to the authed path.
+func (c *Client) RedirectIfAuthed(authedPath string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := c.validateRequestSilently(r)
+		if claims != nil {
+			http.Redirect(w, r, authedPath, http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+// validateRequestSilently extracts and validates the JWT token from the request
+// without writing any error responses, returning the claims if valid.
+func (c *Client) validateRequestSilently(r *http.Request) jwt.MapClaims {
+	var tokenString string
+
+	// 1. Try to get token from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+			tokenString = parts[1]
+		}
+	}
+
+	// 2. Fallback to getting token from configured cookie
+	cookieName := c.config.CookieName
+	if cookieName == "" {
+		cookieName = "grxm-token" // Failsafe default
+	}
+
+	if tokenString == "" {
+		cookie, err := r.Cookie(cookieName)
+		if err == nil {
+			tokenString = cookie.Value
+		}
+	}
+
+	if tokenString == "" {
+		return nil
+	}
+
+	// Parse and validate the token signature using the Client's dynamic PublicKey
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		if c.PublicKey == nil {
+			return nil, fmt.Errorf("IAM public key is not loaded")
+		}
+		return c.PublicKey, nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil
+	}
+
+	// Extract the primary UID claim required by zero-trust design
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil
+	}
+
+	uid, ok := claims["uid"].(string)
+	if !ok {
+		return nil
+	}
+
+	// Check the Redis denylist
+	if c.Redis != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 100*time.Millisecond)
+		defer cancel()
+		if err := c.Redis.Get(ctx, uid).Err(); err == nil {
+			return nil
+		}
+	}
+
+	return claims
+}
 // using the public key previously fetched by the Client and checks the Redis denylist.
 func (c *Client) AuthRequired(next func(http.ResponseWriter, *http.Request, *Identity)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

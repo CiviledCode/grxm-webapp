@@ -62,7 +62,7 @@ func main() {
 	mux.HandleFunc("/health", api.HealthHandler)
 
 	// Serve the static login page
-	mux.HandleFunc("/login", api.ServeStatic("./static/login.html"))
+	mux.HandleFunc("/login", iamClient.RedirectIfAuthed(appConfig.AuthedPath, api.LoginHandler(appConfig)))
 
 	// Profile creation UI (Requires Auth only)
 	mux.HandleFunc("/profile/create", iamClient.AuthRequired(api.ProfileCreateHandler(appConfig)))
@@ -89,7 +89,7 @@ func main() {
 	// Catch-all route (and home page)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			api.ServeStatic("./static/index.html").ServeHTTP(w, r)
+			iamClient.RedirectIfAuthed(appConfig.AuthedPath, api.ServeStatic("./static/index.html")).ServeHTTP(w, r)
 			return
 		}
 
