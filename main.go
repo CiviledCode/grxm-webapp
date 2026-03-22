@@ -61,18 +61,45 @@ func main() {
 	// Public health check endpoint
 	mux.HandleFunc("/health", api.HealthHandler)
 
+	// Serve the static login page
+	mux.HandleFunc("/login", api.ServeStatic("./static/login.html"))
+
 	// Profile creation UI (Requires Auth only)
 	mux.HandleFunc("/profile/create", iamClient.AuthRequired(api.ProfileCreateHandler(appConfig)))
 
-	// Protected API route - Wraps AdminHandler in the ProfileRequired and RoleRequired middlewares
-	mux.HandleFunc("/admin", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminHandler)))
+	// Protected API route - Wraps AdminDashboardHandler in the ProfileRequired and RoleRequired middlewares
+	mux.HandleFunc("/admin/dashboard", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminDashboardHandler)))
+
+	// Admin Users Management UI
+	mux.HandleFunc("/admin/users", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminUsersHandler)))
+
+	// Admin APIs
+	mux.HandleFunc("/api/admin/users/search", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminSearchUsersAPI)))
+	mux.HandleFunc("/api/admin/users/ban", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminBanUserAPI(iamClient))))
+	mux.HandleFunc("/api/admin/users/promote", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminPromoteUserAPI(iamClient))))
 
 	// Protected API route - Wraps HelloHandler in the ProfileRequired and AuthRequired middlewares
 	mux.HandleFunc("/api/hello", iamClient.AuthRequired(api.ProfileRequired(api.HelloHandler(iamClient.PublicKeyPEM))))
 
-	// Serve the frontend template files (HTML, CSS, JS)
-	fileServer := http.FileServer(http.Dir("./static"))
-	mux.Handle("/", fileServer)
+	// Serve the assets directory
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
+
+	// Catch-all route (and home page)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			// Serve the home page which requires Auth and a Profile
+			iamClient.AuthRequired(api.ProfileRequired(api.ServeStaticAuthed("./static/index.html"))).ServeHTTP(w, r)
+			return
+		}
+
+		// Fallback redirect for unknown endpoints
+		cookie, err := r.Cookie(appConfig.CookieName)
+		if err == nil && cookie.Value != "" {
+			http.Redirect(w, r, appConfig.AuthedPath, http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, appConfig.UnauthedPath, http.StatusSeeOther)
+		}
+	})
 
 	// 4. Start Server
 	log.Printf("Starting Template Webapp server on port %s", appConfig.Port)

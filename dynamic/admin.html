@@ -3,9 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Portal</title>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/assets/main.css">
 </head>
 <body>
-<h1>Welcome, {{ .User }}</h1>
+    <div class="navbar">
+        <h1>Template Webapp - Admin</h1>
+        <div>
+            <span style="margin-right: 1rem;">Logged in as: {{.User}}</span>
+            <button class="logout-btn" onclick="window.location.href='/'">Back to Site</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <h2>Admin Dashboard</h2>
+        <p>Welcome to the administrative control panel.</p>
+
+        <div class="dashboard-grid">
+            <a href="/admin/users" class="card">
+                <h3>User Management</h3>
+                <p>Search users, assign roles, and issue bans.</p>
+            </a>
+            <!-- Add more tools here in the future -->
+            <div class="card" style="opacity: 0.5; cursor: not-allowed;">
+                <h3>System Logs</h3>
+                <p>Coming soon...</p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

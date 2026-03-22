@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <link rel="stylesheet" href="/assets/main.css">
+</head>
+<body>
+    <div class="navbar">
+        <h1>User Management</h1>
+        <div>
+            <button class="logout-btn" onclick="window.location.href='/admin/dashboard'">Back to Dashboard</button>
+        </div>
+    </div>
+
+    <div class="content" style="max-width: 800px;">
+        <div class="stat-box">
+            Total Profiles Created: <strong>{{.Count}}</strong>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search by username or UUID...">
+            <button class="btn" style="width: auto;" onclick="searchUsers()">Search</button>
+        </div>
+
+        <div id="results" class="user-list">
+            <!-- Results populated here -->
+        </div>
+    </div>
+
+    <script>
+        async function searchUsers() {
+            const query = document.getElementById('searchInput').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!query) {
+                resultsDiv.innerHTML = '<p class="status-error">Please enter a search term.</p>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p class="status-loading">Searching...</p>';
+
+            try {
+                const response = await fetch(`/api/admin/users/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error('Search failed');
+                const users = await response.json();
+
+                if (users.length === 0) {
+                    resultsDiv.innerHTML = '<p class="status-loading">No users found.</p>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = '';
+                users.forEach(user => {
+                    const el = document.createElement('div');
+                    el.className = 'user-item';
+                    el.innerHTML = `
+                        <div class="user-info">
+                            <strong>${escapeHtml(user.username)}</strong>
+                            <span>UUID: ${escapeHtml(user.uuid)}</span>
+                        </div>
+                        <div class="user-actions">
+                            <button class="btn btn-small" onclick="promoteUser('${user.uuid}')">Promote</button>
+                            <button class="btn btn-small btn-danger" onclick="banUser('${user.uuid}')">Ban</button>
+                        </div>
+                    `;
+                    resultsDiv.appendChild(el);
+                });
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="status-error">${error.message}</p>`;
+            }
+        }
+
+        async function promoteUser(uuid) {
+            const role = prompt("Enter the role to assign to this user:");
+            if (!role) return;
+
+            try {
+                const response = await fetch('/api/admin/users/promote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uuid, role: role })
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('User promoted successfully!');
+            } catch (error) {
+                alert('Failed to promote user: ' + error.message);
+            }
+        }
+
+        async function banUser(uuid) {
+            const reason = prompt("Enter reason for ban:");
+            if (reason === null) return; // Cancelled
+
+            try {
+                const response = await fetch('/api/admin/users/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uuid, reason: reason })
+                });
+                if (!response.ok) throw new Error(await response.text());
+                alert('User banned successfully!');
+            } catch (error) {
+                alert('Failed to ban user: ' + error.message);
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

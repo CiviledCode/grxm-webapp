@@ -28,6 +28,8 @@ type AppConfig struct {
 	MongoDB              string        `json:"mongo_db"`
 	AdminRole            string        `json:"admin_role"`
 	DefaultRole          string        `json:"default_role"`
+	AuthedPath           string        `json:"authed_path"`
+	UnauthedPath         string        `json:"unauthed_path"`
 	Profile              ProfileConfig `json:"profile"`
 }
 
@@ -90,6 +92,12 @@ func LoadConfig() (*AppConfig, error) {
 	}
 	if cfg.MongoDB == "" {
 		cfg.MongoDB = "grxm_webapp"
+	}
+	if cfg.AuthedPath == "" {
+		cfg.AuthedPath = "/"
+	}
+	if cfg.UnauthedPath == "" {
+		cfg.UnauthedPath = "/login"
 	}
 
 	if cfg.Profile.MinUsernameLength == 0 {

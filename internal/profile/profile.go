@@ -82,3 +82,37 @@ func Create(ctx context.Context, cfg *config.AppConfig, uuid, username string) (
 
 	return p, nil
 }
+
+// Search finds profiles matching the given query (username or exact UUID match)
+func Search(ctx context.Context, query string) ([]*Profile, error) {
+	col := db.MongoDB.Collection("profiles")
+	
+	// Create a regex for case-insensitive username search
+	usernameRegex := bson.M{"$regex": query, "$options": "i"}
+	
+	filter := bson.M{
+		"$or": []bson.M{
+			{"_id": query},
+			{"username": usernameRegex},
+		},
+	}
+
+	cursor, err := col.Find(ctx, filter, options.Find().SetLimit(50))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var profiles []*Profile
+	if err := cursor.All(ctx, &profiles); err != nil {
+		return nil, err
+	}
+
+	return profiles, nil
+}
+
+// Count returns the total number of profiles
+func Count(ctx context.Context) (int64, error) {
+	col := db.MongoDB.Collection("profiles")
+	return col.CountDocuments(ctx, bson.M{})
+}

@@ -31,7 +31,7 @@ func ProfileCreateHandler(cfg *config.AppConfig) func(http.ResponseWriter, *http
 	return func(w http.ResponseWriter, r *http.Request, ident *iam.Identity) {
 		// If they already have a profile, redirect away from create page
 		if _, err := profile.Get(r.Context(), ident.UserID); err == nil {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			http.Redirect(w, r, cfg.AuthedPath, http.StatusSeeOther)
 			return
 		}
 
@@ -54,7 +54,7 @@ func ProfileCreateHandler(cfg *config.AppConfig) func(http.ResponseWriter, *http
 				return
 			}
 
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			http.Redirect(w, r, cfg.AuthedPath, http.StatusSeeOther)
 		}
 	}
 }
