@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/civiledcode/grxm-webapp/internal/api"
 	"github.com/civiledcode/grxm-webapp/internal/config"
 	"github.com/civiledcode/grxm-webapp/internal/db"
 	"github.com/civiledcode/grxm-webapp/internal/iam"
+	"github.com/civiledcode/grxm-webapp/internal/profile"
 )
 
 func main() {
@@ -25,6 +28,13 @@ func main() {
 	// 2. Initialize MongoDB connection
 	if err := db.Init(appConfig); err != nil {
 		log.Fatalf("Critical Error: Failed to initialize MongoDB connection: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := profile.Init(ctx, appConfig); err != nil {
+		log.Fatalf("Critical Error: Failed to initialize profiles: %v", err)
 	}
 
 	iamCfg := iam.Config{
@@ -51,8 +61,14 @@ func main() {
 	// Public health check endpoint
 	mux.HandleFunc("/health", api.HealthHandler)
 
-	// Protected API route - Wraps HelloHandler in the JWT validation middleware
-	mux.HandleFunc("/api/hello", iamClient.AuthRequired(api.HelloHandler(iamClient.PublicKeyPEM)))
+	// Profile creation UI (Requires Auth only)
+	mux.HandleFunc("/profile/create", iamClient.AuthRequired(api.ProfileCreateHandler(appConfig)))
+
+	// Protected API route - Wraps AdminHandler in the ProfileRequired and RoleRequired middlewares
+	mux.HandleFunc("/admin", iamClient.RoleRequired(appConfig.AdminRole, api.ProfileRequired(api.AdminHandler)))
+
+	// Protected API route - Wraps HelloHandler in the ProfileRequired and AuthRequired middlewares
+	mux.HandleFunc("/api/hello", iamClient.AuthRequired(api.ProfileRequired(api.HelloHandler(iamClient.PublicKeyPEM))))
 
 	// Serve the frontend template files (HTML, CSS, JS)
 	fileServer := http.FileServer(http.Dir("./static"))

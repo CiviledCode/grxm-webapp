@@ -107,7 +107,7 @@ func (c *Client) validateRequest(w http.ResponseWriter, r *http.Request) jwt.Map
 
 // AuthRequired is an HTTP middleware that validates the JWT Bearer token
 // using the public key previously fetched by the Client and checks the Redis denylist.
-func (c *Client) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
+func (c *Client) AuthRequired(next func(http.ResponseWriter, *http.Request, *Identity)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := c.validateRequest(w, r)
 		if claims == nil {
@@ -116,30 +116,48 @@ func (c *Client) AuthRequired(next http.HandlerFunc) http.HandlerFunc {
 
 		uid := claims["uid"].(string)
 
+		var roles []string
+		if rolesClaim, ok := claims["roles"]; ok {
+			if rolesArr, ok := rolesClaim.([]interface{}); ok {
+				for _, rClaim := range rolesArr {
+					if rStr, ok := rClaim.(string); ok {
+						roles = append(roles, rStr)
+					}
+				}
+			}
+		}
+
+		ident := &Identity{
+			UserID: uid,
+			Roles:  roles,
+		}
+
 		// Inject the UID into the request for downstream handlers to use
 		r.Header.Set("X-User-ID", uid)
 
-		next.ServeHTTP(w, r)
+		next(w, r, ident)
 	}
 }
 
 // RoleRequired is an HTTP middleware that validates the JWT Bearer token,
 // checks the Redis denylist, and ensures the user has the specified role.
-func (c *Client) RoleRequired(role string, next http.HandlerFunc) http.HandlerFunc {
+func (c *Client) RoleRequired(role string, next func(http.ResponseWriter, *http.Request, *Identity)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := c.validateRequest(w, r)
 		if claims == nil {
 			return // Response already written by validateRequest
 		}
 
-		// Check for the required role
+		var roles []string
 		hasRole := false
 		if rolesClaim, ok := claims["roles"]; ok {
 			if rolesArr, ok := rolesClaim.([]interface{}); ok {
 				for _, rClaim := range rolesArr {
-					if rStr, ok := rClaim.(string); ok && rStr == role {
-						hasRole = true
-						break
+					if rStr, ok := rClaim.(string); ok {
+						roles = append(roles, rStr)
+						if rStr == role {
+							hasRole = true
+						}
 					}
 				}
 			}
@@ -152,9 +170,14 @@ func (c *Client) RoleRequired(role string, next http.HandlerFunc) http.HandlerFu
 
 		uid := claims["uid"].(string)
 
+		ident := &Identity{
+			UserID: uid,
+			Roles:  roles,
+		}
+
 		// Inject the UID into the request for downstream handlers to use
 		r.Header.Set("X-User-ID", uid)
 
-		next.ServeHTTP(w, r)
+		next(w, r, ident)
 	}
 }

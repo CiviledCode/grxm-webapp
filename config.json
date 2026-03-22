@@ -1,12 +1,18 @@
 {
     "port": "8080",
-    "iam_host": "localhost:8081",
-    "iam_authority_password": "change-this-in-production-123",
-    "redis_host": "localhost:6379",
-    "redis_password": "",
-    "redis_db": 0,
-    "cookie_name": "grxm-token",
+    "iam_host": "${STACK_NAME}-iam:8081",
+    "iam_authority_password": "docker-compose-secure-password-123",
+    "redis_host": "${STACK_NAME}-redis:6379",
+    "cookie_name": "grxm_token",
     "db_provider": "mongo",
-    "mongo_uri": "mongodb://localhost:27017",
-    "mongo_db": "grxm_webapp"
+    "mongo_uri": "mongodb://${STACK_NAME}-mongo-app:27017",
+    "mongo_db": "grxm_webapp",
+    "admin_role": "admin",
+    "default_role": "user",
+    "profile": {
+        "require_unique_username": true,
+        "min_username_length": 3,
+        "max_username_length": 20,
+        "blacklisted_chars": "@!#$%^&*()+=[]{}|\\:;\"'<>,.?/"
+    }
 }

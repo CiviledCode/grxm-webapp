@@ -6,18 +6,29 @@ import (
 	"os"
 )
 
+// ProfileConfig defines the constraints and settings for user profiles.
+type ProfileConfig struct {
+	RequireUniqueUsername bool   `json:"require_unique_username"`
+	MinUsernameLength     int    `json:"min_username_length"`
+	MaxUsernameLength     int    `json:"max_username_length"`
+	BlacklistedChars      string `json:"blacklisted_chars"`
+}
+
 // AppConfig represents the application's configuration structure.
 type AppConfig struct {
-	Port                 string `json:"port"`
-	IAMHost              string `json:"iam_host"`
-	IAMAuthorityPassword string `json:"iam_authority_password"`
-	RedisHost            string `json:"redis_host"`
-	RedisPassword        string `json:"redis_password"`
-	RedisDB              int    `json:"redis_db"`
-	CookieName           string `json:"cookie_name"`
-	DBProvider           string `json:"db_provider"`
-	MongoURI             string `json:"mongo_uri"`
-	MongoDB              string `json:"mongo_db"`
+	Port                 string        `json:"port"`
+	IAMHost              string        `json:"iam_host"`
+	IAMAuthorityPassword string        `json:"iam_authority_password"`
+	RedisHost            string        `json:"redis_host"`
+	RedisPassword        string        `json:"redis_password"`
+	RedisDB              int           `json:"redis_db"`
+	CookieName           string        `json:"cookie_name"`
+	DBProvider           string        `json:"db_provider"`
+	MongoURI             string        `json:"mongo_uri"`
+	MongoDB              string        `json:"mongo_db"`
+	AdminRole            string        `json:"admin_role"`
+	DefaultRole          string        `json:"default_role"`
+	Profile              ProfileConfig `json:"profile"`
 }
 
 // LoadConfig attempts to locate and parse the config.json file based on priority:
@@ -79,6 +90,13 @@ func LoadConfig() (*AppConfig, error) {
 	}
 	if cfg.MongoDB == "" {
 		cfg.MongoDB = "grxm_webapp"
+	}
+
+	if cfg.Profile.MinUsernameLength == 0 {
+		cfg.Profile.MinUsernameLength = 3
+	}
+	if cfg.Profile.MaxUsernameLength == 0 {
+		cfg.Profile.MaxUsernameLength = 20
 	}
 
 	return &cfg, nil

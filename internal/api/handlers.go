@@ -2,9 +2,43 @@ package api
 
 import (
 	"encoding/json"
+	"html/template"
+	"io"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/civiledcode/grxm-webapp/internal/iam"
+	"github.com/civiledcode/grxm-webapp/internal/profile"
 )
+
+var (
+	adminTemplate *template.Template
+)
+
+func loadTemplate(name, path string) *template.Template {
+	f, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+
+	content, err := io.ReadAll(f)
+	if err != nil {
+		panic(err)
+	}
+
+	t := template.New(name)
+	val, err := t.Parse(string(content))
+	if err != nil {
+		panic(err)
+	}
+
+	return val
+}
+
+func init() {
+	adminTemplate = loadTemplate("admin_dashboard", "./dynamic/admin.html")
+}
 
 // APIResponse represents the JSON structure for the Hello endpoint.
 type APIResponse struct {
@@ -15,14 +49,12 @@ type APIResponse struct {
 
 // HelloHandler handles the protected "/api/hello" route and returns authenticated user data.
 // It acts as a closure to capture the public key needed for the template display.
-func HelloHandler(pubKeyPEM string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Retrieve the secure user ID injected by the IAM authentication middleware
-		uid := r.Header.Get("X-User-ID")
-
+func HelloHandler(pubKeyPEM string) func(http.ResponseWriter, *http.Request, *iam.Identity, *profile.Profile) {
+	return func(w http.ResponseWriter, r *http.Request, ident *iam.Identity, p *profile.Profile) {
+		// We can now use ident.UserID instead of fetching it from headers
 		response := APIResponse{
 			Message:   "Hello, World! This is a protected endpoint.",
-			UID:       uid,
+			UID:       p.Username + " (" + ident.UserID + ")",
 			PublicKey: pubKeyPEM,
 		}
 
@@ -41,4 +73,19 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 		"database": "ok",
 		"time":     time.Now().Format(time.RFC3339),
 	})
+}
+
+type AdminValues struct {
+	User string
+}
+
+// AdminHandler handles the protected admin route.
+func AdminHandler(w http.ResponseWriter, r *http.Request, ident *iam.Identity, p *profile.Profile) {
+	v := AdminValues{
+		User: p.Username + " (" + ident.UserID + ")",
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	adminTemplate.Execute(w, v)
 }
