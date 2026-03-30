@@ -10,7 +10,7 @@
 
 <div class="navbar">
     <h1>Template Webapp</h1>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
 </div>
 
 <div class="content">
@@ -31,12 +31,6 @@
 <script>
     // Configuration: Backend API
     const API_BASE_URL = window.location.origin;
-
-    function logout() {
-        // Clear the cookie by setting its expiration to the past
-        document.cookie = "grxm-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-        window.location.href = '/login';
-    }
 
     // Helper to decode JWT for UI display
     function parseJwt (token) {

@@ -63,6 +63,9 @@ func main() {
 
 	// Serve the static login page
 	mux.HandleFunc("/login", iamClient.RedirectIfAuthed(appConfig.AuthedPath, api.LoginHandler(appConfig)))
+	
+	// Server-side logout
+	mux.HandleFunc("/logout", api.LogoutHandler(appConfig))
 
 	// Profile creation UI (Requires Auth only)
 	mux.HandleFunc("/profile/create", iamClient.AuthRequired(api.ProfileCreateHandler(appConfig)))

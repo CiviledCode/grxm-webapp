@@ -58,6 +58,25 @@ func LoginHandler(cfg *config.AppConfig) http.HandlerFunc {
 	}
 }
 
+// LogoutHandler clears the authentication cookie and redirects to the unauthenticated path.
+func LogoutHandler(cfg *config.AppConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Expire the cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:     cfg.CookieName,
+			Value:    "",
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+		})
+
+		// Redirect to the unauthenticated path (login page)
+		http.Redirect(w, r, cfg.UnauthedPath, http.StatusSeeOther)
+	}
+}
+
 // APIResponse represents the JSON structure for the Hello endpoint.
 type APIResponse struct {
 	Message   string `json:"message"`
@@ -125,7 +144,7 @@ func AdminDashboardHandler(w http.ResponseWriter, r *http.Request, ident *iam.Id
 // AdminUsersHandler renders the users management UI.
 func AdminUsersHandler(w http.ResponseWriter, r *http.Request, ident *iam.Identity, p *profile.Profile) {
 	count, _ := profile.Count(r.Context())
-	
+
 	data := struct {
 		User  string
 		Count int64
